@@ -40,14 +40,12 @@ htmlcov/
 Thumbs.db
 
 # Project outputs
-codigo-fonte/resultados.csv
-codigo-fonte/resultados_*.csv
-latex/*.aux
-latex/*.bbl
-latex/*.blg
-latex/*.log
-latex/*.out
-latex/*.toc
-latex/*.synctex.gz
+estudo-dirigido-1/latex/*.aux
+estudo-dirigido-1/latex/*.bbl
+estudo-dirigido-1/latex/*.blg
+estudo-dirigido-1/latex/*.log
+estudo-dirigido-1/latex/*.out
+estudo-dirigido-1/latex/*.toc
+estudo-dirigido-1/latex/*.synctex.gz
 
-latex/CHECKLIST-pre-entrega.txt
+estudo-dirigido-1/latex/CHECKLIST-pre-entrega.txt
