@@ -1,0 +1,168 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{url}
+\usepackage{setspace}
+\usepackage{natbib}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+\onehalfspacing
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue,
+    pdfauthor={},
+    pdftitle={Lights Out: analise de algoritmos de busca}
+}
+
+\title{An\'alise de Algoritmos de Busca no Problema das Luzes (Lights Out)}
+\author{
+    Susan Kaori Izawa\\
+    Universidade Tuiuti do Paran\'a\\
+    Bacharelado em Ci\^encia da Computa\c{c}\~ao\\
+    \texttt{SUSAN.IZAWA@utp.edu.br}
+}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este relat\'orio descreve a modelagem do Problema das Luzes (Lights Out) como um problema de busca em espa\c{c}o de estados e compara o desempenho de estrat\'egias cl\'assicas: busca em largura, busca em profundidade, busca gulosa, A* e busca local por subida de encosta (\textit{hill climbing}). S\~ao discutidos tempo de execu\c{c}\~ao, uso de mem\'oria, capacidade de encontrar solu\c{c}\~ao e aspectos de otimalidade, com experimentos em tabuleiros de diferentes dimens\~oes.
+\end{abstract}
+
+\section{Introdu\c{c}\~ao ao problema}
+
+No Lights Out, cada c\'elula de um tabuleiro $N\times N$ pode estar apagada (0) ou acesa (1). Ao acionar uma c\'elula, ela e seus vizinhos ortogonais (cima, baixo, esquerda, direita) alternam de estado. O objetivo adotado neste trabalho \'e levar o tabuleiro a um estado em que todas as luzes estejam acesas, a partir de um estado inicial (por exemplo, todas apagadas ou gerado aleatoriamente com semente fixa), minimizando o n\'umero de a\c{c}\~oes \citep{russell2021}.
+
+O problema pode ser representado por um grafo impl\'icito: v\'ertices s\~ao configura\c{c}\~oes do tabuleiro e arestas correspondem a cliques em cada c\'elula. Todas as a\c{c}\~oes t\^em custo unit\'ario, o que torna a busca em largura adequada para encontrar solu\c{c}\~oes de comprimento m\'inimo quando o espa\c{c}o explorado \'e trat\'avel \citep{russell2021}.
+
+\section{Fundamenta\c{c}\~ao dos algoritmos}
+
+\textbf{Busca em largura (BFS)} explora camadas por dist\^ancia em n\'umero de a\c{c}\~oes a partir do estado inicial. Com custo uniforme, a primeira solu\c{c}\~ao encontrada tem profundidade m\'inima \citep{russell2021}.
+
+\textbf{Busca em profundidade (DFS)} explora preferencialmente um ramo profundo. Pode encontrar solu\c{c}\~oes rapidamente em alguns casos, mas n\~ao garante otimalidade em grafos gen\'ericos e pode exigir limites pr\'aticos (tempo/expans\~oes) em espa\c{c}os grandes \citep{russell2021}.
+
+\textbf{Busca gulosa} expande estados priorizando uma fun\c{c}\~ao heur\'istica $h(s)$ que estima o ``qu\~ao longe'' o estado $s$ est\'a do objetivo, também conhecida como a distância de Hamming. Neste trabalho, utiliza-se $h(s)$ como o n\'umero de c\'elulas que ainda diferem do objetivo (contagem de bits incorretos em rela\c{c}\~ao ao tabuleiro todo aceso). A busca gulosa n\~ao garante otimalidade \citep{russell2021}.
+
+\textbf{A*} mant\'em a ordena\c{c}\~ao por $f(s)=g(s)+h(s)$, onde $g(s)$ \'e o custo acumulado desde o inicial \citep{hart1968,russell2021}. Dependendo da admissibilidade/consist\^encia de $h$, o A* pode garantir otimalidade; a heur\'istica utilizada aqui, também a distância de Hamming, \'e principalmente para fins comparativos e deve ser interpretada com cuidado na discuss\~ao de otimalidade.
+
+\textbf{Hill climbing} parte de um estado e, iterativamente, move-se para um sucessor que melhore $h(s)$ (subida de encosta). Pode parar em \'otimos locais e n\~ao garante encontrar solu\c{c}\~ao, podendo ficar preso em máximos locais \citep{russell2021}.
+
+\section{Metodologia experimental}
+
+Foram implementados o gerador de estados do tabuleiro (separado da camada de busca) e m\'etricas de desempenho (tempo de parede, mem\'oria rastreada via \texttt{tracemalloc} e contagem de n\'os expandidos). Os algoritmos recebem limites de expans\~oes e tempo para permitir encerramento controlado em inst\^ancias grandes.
+
+No c\'odigo, o estado do tabuleiro \'e representado por um n\'umero bin\'ario em que cada c\'elula do tabuleiro $N\times N$ \`e tratada por um \textbf{\'indice linear} $i \in \{0,\dots,N^2-1\}$. A convers\~ao entre coordenadas e esse \textbf{\'indice linear} segue $i = r\cdot N + c$, onde $r$ \`e a linha e $c$ a coluna. Essa escolha simplifica a representa\c{c}\~ao do estado em bits e o espa\c{c}o de a\c{c}\~oes (um clique por \textbf{\'indice linear}), al\'em de facilitar as opera\c{c}\~oes de vizinhan\c{c}a usadas em \texttt{apply\_click}.
+
+Tamb\'em foi empregada a \textbf{dist\^ancia de Hamming} em rela\c{c}\~ao ao estado objetivo (todas as luzes acesas). Para um estado $s$ e objetivo $g$, considera-se
+\[
+h(s) = d_H(s,g),
+\]
+que corresponde \`a quantidade de posi\c{c}\~oes em que $s$ e $g$ diferem. Na implementa\c{c}\~ao em bits, isso equivale \`a contagem de bits 1 em $s \oplus g$ (opera\c{c}\~ao XOR), isto \`e, o n\'umero de c\'elulas ainda ``incorretas'' em rela\c{c}\~ao ao objetivo.
+
+As inst\^ancias variam $N \in \{2,3,5,7,10\}$ (e maiores quando vi\'avel). Para cada $N$, registra-se se houve solu\c{c}\~ao dentro dos limites, o comprimento da sequ\^encia de cliques (quando aplic\'avel) e as m\'etricas coletadas.
+
+\section{Resultados}
+
+Esta se\c{c}\~ao apresenta os resultados obtidos para os tamanhos $N \in \{2,3,5,7,10\}$, considerando tempo de execu\c{c}\~ao, mem\'oria de pico, capacidade de encontrar solu\c{c}\~ao e qualidade do caminho retornado. Em conjunto, as Tabelas~\ref{tab:tempo}--\ref{tab:qualidade} permitem comparar escalabilidade e trade-offs entre os algoritmos avaliados.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Algoritmo & $2\times 2$ & $3\times 3$ & $5\times 5$ & $7\times 7$ & $10\times 10$ \\
+\midrule
+BFS & 0.000160 & 0.005160 & 30.113$^{\dagger}$ & 30.150$^{\dagger}$ & 30.196$^{\dagger}$ \\
+DFS & 0.000189 & 0.020006 & 75.211$^{\dagger}$ & 186.992$^{\dagger}$ & 335.628$^{\dagger}$ \\
+Gulosa & 0.000167 & 0.007324 & 0.091 & 35.827$^{\dagger}$ & 39.142$^{\dagger}$ \\
+A* & 0.000152 & 0.005861 & 15.786 & 33.643$^{\dagger}$ & 35.270$^{\dagger}$ \\
+Hill climbing & 0.000045 & 0.000246 & 0.000517 & 0.003126 & 0.012337 \\
+\bottomrule
+\end{tabular}
+\caption{Tempo de execu\c{c}\~ao (s) por tamanho de tabuleiro. $^{\dagger}$Limite de tempo de 30s atingido.}
+\label{tab:tempo}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Algoritmo & $2\times 2$ & $3\times 3$ & $5\times 5$ & $7\times 7$ & $10\times 10$ \\
+\midrule
+BFS & 0.00 & 0.05 & 132.12 & 264.91 & 273.45 \\
+DFS & 0.00 & 2.61 & 11455.94 & 17991.58 & 19360.97 \\
+Gulosa & 0.00 & 0.19 & 3.90 & 1486.84 & 1491.08 \\
+A* & 0.00 & 0.07 & 361.28 & 923.94 & 757.79 \\
+Hill climbing & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+\bottomrule
+\end{tabular}
+\caption{Pico aproximado de mem\'oria rastreada (MB) durante execu\c{c}\~ao (via \texttt{tracemalloc}; bytes divididos por $10^6$).}
+\label{tab:memoria}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Algoritmo & $2\times 2$ & $3\times 3$ & $5\times 5$ & $7\times 7$ & $10\times 10$ \\
+\midrule
+BFS & success & success & time\_limit & time\_limit & time\_limit \\
+DFS & success & success & time\_limit & time\_limit & time\_limit \\
+Gulosa & success & success & success & time\_limit & time\_limit \\
+A* & success & success & success & time\_limit & time\_limit \\
+Hill climbing & no\_solution & no\_solution & no\_solution & no\_solution & no\_solution \\
+\bottomrule
+\end{tabular}
+\caption{Capacidade de encontrar solu\c{c}\~ao por algoritmo e tamanho de tabuleiro.}
+\label{tab:sucesso}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Algoritmo & $2\times 2$ & $3\times 3$ & $5\times 5$ & $7\times 7$ & $10\times 10$ \\
+\midrule
+BFS & 4 (\textit{ot.}) & 5 (\textit{ot.}) & -- & -- & -- \\
+DFS & 10 (n\~ao) & 409 (n\~ao) & -- & -- & -- \\
+Gulosa & 4 (\textit{ot.}) & 11 (n\~ao) & 25 (n/v) & -- & -- \\
+A* & 4 (\textit{ot.}) & 5 (\textit{ot.}) & 15 (n/v) & -- & -- \\
+Hill climbing & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Qualidade da solu\c{c}\~ao obtida: comprimento do caminho e verifica\c{c}\~ao de otimalidade. `n/v` indica que n\~ao houve refer\^encia \textit{a priori} para comparar com o \textit{otimo}.}
+\label{tab:qualidade}
+\end{table}
+
+\section{Discuss\~ao}
+
+Na Tabela~\ref{tab:tempo} e na Tabela~\ref{tab:memoria}, observa-se que o DFS apresenta os maiores custos de tempo e mem\'oria nas inst\^ancias mais dif\'iceis. Em paralelo, a Tabela~\ref{tab:qualidade} mostra que, mesmo quando encontra solu\c{c}\~ao, o DFS pode produzir caminhos muito piores que BFS e A* (por exemplo, em $3\times 3$: 409 passos no DFS contra 5 no BFS e no A*), refor\c{c}ando a baixa qualidade pr\'atica da solu\c{c}\~ao retornada nesse m\'etodo.
+
+A Tabela~\ref{tab:sucesso} mostra que A* e busca gulosa tiveram a maior taxa de sucesso dentro dos limites adotados, enquanto BFS e DFS falharam com mais frequ\^encia por \textit{time\_limit}. O hill climbing foi o mais r\'apido (Tabela~\ref{tab:tempo}), por\'em n\~ao encontrou solu\c{c}\~ao em nenhuma inst\^ancia (Tabela~\ref{tab:sucesso}), comportamento compat\'ivel com aprisionamento em \textit{otimos locais}.
+
+Embora o BFS seja a refer\^encia de otimalidade quando conclui, a Tabela~\ref{tab:tempo} indica que seu custo cresce rapidamente. Isso explica por que, em tabuleiros maiores, o A* e a busca gulosa conseguem entregar respostas dentro do limite de 30s em cen\'arios nos quais BFS n\~ao conclui. Em contrapartida, a garantia de otimalidade do A* depende da heur\'istica adotada, e a busca gulosa n\~ao garante solu\c{c}\~ao \textit{otima} \citep{russell2021}.
+
+Quando um algoritmo n\~ao for vi\'avel para $N$ grande, a limita\c{c}\~ao deve ser explicada pelo crescimento do espa\c{c}o de estados ($\mathcal{O}(2^{N^2})$ configura\c{c}\~oes) e pelos recursos medidos (tempo/mem\'oria), relacionando com as propriedades do m\'etodo \citep{russell2021}.
+
+\section{Conclus\~ao}
+
+A escolha do algoritmo depende fortemente do compromisso entre qualidade da solu\c{c}\~ao, taxa de sucesso e custo computacional. Pelos resultados deste trabalho, o A* apresentou o melhor compromisso geral: manteve solu\c{c}\~oes curtas nas inst\^ancias em que foi poss\'ivel comparar e conseguiu finalizar casos em que o BFS n\~ao concluiu no limite de 30s. A busca gulosa ficou como segunda melhor alternativa em desempenho pr\'atico, com boa taxa de sucesso, mas sem garantia de otimalidade.
+
+O BFS permaneceu como refer\^encia para solu\c{c}\~ao \textit{otima} nas inst\^ancias pequenas, ao custo de expans\~ao elevada e baixa escalabilidade. O DFS foi o menos atraente entre as buscas sistem\'aticas, por combinar alto tempo/mem\'oria com baixa qualidade de caminho nas inst\^ancias em que encontrou solu\c{c}\~ao. Por fim, o hill climbing mostrou excelente velocidade, mas incapacidade de resolver os casos testados, refor\c{c}ando sua sensibilidade a \textit{otimos locais}.
+
+\bibliographystyle{plainnat}
+\bibliography{referencias}
+
+\end{document}
